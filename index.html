@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark">
+  <title>Text2PDF</title>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400;1,600&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0D0D0D;
+      --surface: #1A1A1A;
+      --surface-2: #222;
+      --accent: #D4A574;
+      --text: #E5E5E5;
+      --muted: #A8A8A8;
+      --danger: #D26A6A;
+      --doc-bg: #FFFDF7;
+      --doc-border: #E8E4DC;
+      --doc-text: #2D2D2D;
+      --t: 200ms ease;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
+      min-height: 100vh;
+      line-height: 1.45;
+    }
+
+    .app {
+      width: min(800px, 100% - 2rem);
+      margin: 0 auto;
+      padding: 1.25rem 0 5rem;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: clamp(1.7rem, 3.3vw, 2.2rem);
+      letter-spacing: 0.02em;
+    }
+
+    header p {
+      margin: 0.3rem 0 1.2rem;
+      color: var(--muted);
+    }
+
+    .row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid #2C2C2C;
+      border-radius: 12px;
+      padding: 0.85rem;
+      flex: 1 1 240px;
+    }
+
+    .label { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 0.4rem; }
+
+    .toggle-group { display: flex; gap: 0.45rem; }
+
+    .toggle-btn, button, input, textarea {
+      transition: background-color var(--t), border-color var(--t), color var(--t), box-shadow var(--t), transform var(--t), opacity var(--t);
+    }
+
+    .toggle-btn {
+      min-height: 48px;
+      min-width: 48px;
+      border: 1px solid #444;
+      border-radius: 10px;
+      background: #232323;
+      color: var(--text);
+      padding: 0.55rem 0.85rem;
+      cursor: pointer;
+      font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
+      font-weight: 600;
+    }
+
+    .toggle-btn.active {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 28%, #292421);
+      color: #fff;
+    }
+
+    .toggle-btn:hover, button:hover { filter: brightness(1.07); }
+    .toggle-btn:active, button:active { transform: translateY(1px); }
+    .toggle-btn:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    input, textarea {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #444;
+      background: #151515;
+      color: var(--text);
+      padding: 0.75rem 0.85rem;
+      font: inherit;
+      min-height: 48px;
+    }
+
+    textarea {
+      min-height: 250px;
+      resize: vertical;
+      font-family: 'JetBrains Mono', Consolas, Monaco, 'Courier New', monospace;
+      line-height: 1.45;
+    }
+
+    .textarea-wrap { position: relative; }
+
+    .paste-btn {
+      position: absolute;
+      right: 0.55rem;
+      top: 0.55rem;
+      min-height: 36px;
+      border-radius: 8px;
+      border: 1px solid #555;
+      background: #242424;
+      color: var(--text);
+      padding: 0.35rem 0.65rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .count { margin-top: 0.4rem; color: var(--muted); font-size: 0.9rem; }
+
+    .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; }
+
+    button {
+      min-height: 48px;
+      min-width: 48px;
+      border-radius: 10px;
+      border: 1px solid #484848;
+      background: #262626;
+      color: var(--text);
+      cursor: pointer;
+      padding: 0.7rem 1rem;
+      font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
+      font-weight: 700;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #19140e;
+      border-color: color-mix(in srgb, var(--accent) 74%, #000);
+    }
+
+    .danger {
+      border-color: #704040;
+      color: #f7c5c5;
+      background: #2a1f1f;
+    }
+
+    .error {
+      display: none;
+      color: #FF7B7B;
+      margin: 0.55rem 0 0;
+      font-weight: 600;
+    }
+
+    .output { display: none; margin-top: 1rem; }
+
+    .info-bar {
+      border: 1px solid #2e4b39;
+      background: #172419;
+      color: #bfe0c8;
+      padding: 0.65rem 0.85rem;
+      border-radius: 10px;
+      margin-bottom: 0.65rem;
+      font-size: 0.95rem;
+    }
+
+    .flash { animation: flash 550ms ease; }
+    @keyframes flash {
+      0% { box-shadow: 0 0 0 0 rgba(121, 211, 141, 0.6); }
+      100% { box-shadow: 0 0 0 16px rgba(121, 211, 141, 0); }
+    }
+
+    .doc-wrap {
+      position: relative;
+      background: linear-gradient(135deg, rgba(0,0,0,0.015) 25%, transparent 25%) 0 0/12px 12px,
+                  radial-gradient(circle at 1px 1px, rgba(0,0,0,0.015) 1px, transparent 0) 0 0/8px 8px,
+                  var(--doc-bg);
+      border: 1px solid var(--doc-border);
+      border-top: 4px solid var(--accent);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.26);
+      margin-top: 0.65rem;
+      overflow: hidden;
+    }
+
+    .doc-wrap::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 120px;
+      height: 120px;
+      background: radial-gradient(ellipse at bottom right, rgba(0,0,0,.16), transparent 65%);
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .running-header {
+      font-size: 0.82rem;
+      color: #777;
+      text-align: right;
+      padding: 0.5rem 1.3rem 0;
+      font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
+    }
+
+    article.preview {
+      color: var(--doc-text);
+      font-family: 'Crimson Pro', Georgia, 'Times New Roman', serif;
+      overflow-wrap: break-word;
+      hyphens: auto;
+      -webkit-hyphens: auto;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 780px;
+      padding: 1.2rem 2.1rem 1.8rem 1.7rem;
+      font-size: 15px;
+      line-height: 1.45;
+      text-align: justify;
+      orphans: 3;
+      widows: 3;
+    }
+
+    .page-a5 article.preview { max-width: 560px; padding: 1rem 1.35rem 1.4rem; }
+    .size-small article.preview { font-size: 13.5px; line-height: 1.4; }
+    .size-medium article.preview { font-size: 15px; line-height: 1.45; }
+    .size-large article.preview { font-size: 16.5px; line-height: 1.5; }
+
+    article.preview p { margin: 0 0 10px; }
+
+    .doc-title {
+      text-align: center;
+      font-size: 28px;
+      font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
+      margin: 0.2rem 0 0.4rem;
+      font-weight: 700;
+    }
+
+    .doc-title::after {
+      content: "";
+      display: block;
+      width: 40%;
+      margin: 0.4rem auto 0;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    .doc-subject {
+      text-align: center;
+      color: #888;
+      margin: 0.2rem 0 1rem;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
+      font-size: 0.78rem;
+    }
+
+    h1,h2,h3,h4 {
+      font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
+      text-align: left;
+      break-after: avoid;
+      break-inside: avoid;
+      margin: 1.05em 0 0.5em;
+    }
+
+    article.preview > :is(h1,h2,h3,h4):first-child,
+    article.preview > .doc-title + :is(h1,h2,h3,h4) { margin-top: 0.2em; }
+
+    .size-small h1 { font-size: 22px; }
+    .size-medium h1 { font-size: 24px; }
+    .size-large h1 { font-size: 26px; }
+    .size-small h2 { font-size: 18px; }
+    .size-medium h2 { font-size: 20px; }
+    .size-large h2 { font-size: 22px; }
+    .size-small h3 { font-size: 16px; }
+    .size-medium h3 { font-size: 17px; }
+    .size-large h3 { font-size: 18.5px; }
+    .size-small h4 { font-size: 14px; }
+    .size-medium h4 { font-size: 15px; }
+    .size-large h4 { font-size: 16px; }
+
+    h1 { font-weight: 700; border-bottom: 2px solid var(--accent); padding-bottom: 0.2rem; }
+    h2 { font-weight: 700; border-left: 3px solid var(--accent); padding-left: 0.5rem; }
+    h3 { font-weight: 600; }
+    h4 { font-weight: 600; font-style: italic; }
+
+    code {
+      font-family: 'JetBrains Mono', Consolas, Monaco, 'Courier New', monospace;
+      font-size: 0.88em;
+      background: #F0EDE6;
+      color: #C7254E;
+      border-radius: 4px;
+      padding: 0.05em 0.28em;
+    }
+
+    pre {
+      margin: 0.7rem 0;
+      background: #F7F5F0;
+      border: 1px solid #E8E4DC;
+      padding: 0.55rem 0.75rem;
+      border-radius: 7px;
+      font-size: 0.85em;
+      white-space: pre-wrap;
+      break-inside: avoid;
+      overflow-wrap: anywhere;
+    }
+
+    pre.long-code { break-inside: auto; }
+    pre code { background: transparent; color: #2D2D2D; padding: 0; border-radius: 0; font-size: inherit; }
+
+    blockquote {
+      margin: 0.7rem 0;
+      padding: 0.35rem 0.7rem 0.35rem 0.9rem;
+      border-left: 3px solid var(--accent);
+      background: #FDFBF7;
+      color: #3D3D3D;
+      font-style: italic;
+      position: relative;
+      break-inside: avoid;
+    }
+
+    blockquote::before {
+      content: "\201C";
+      position: absolute;
+      left: 6px;
+      top: -8px;
+      font-size: 2rem;
+      opacity: 0.14;
+      font-style: normal;
+      font-family: 'Source Sans 3', sans-serif;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.7rem 0;
+      break-inside: avoid;
+    }
+
+    thead { display: table-header-group; }
+    th, td { border: 1px solid #E8E4DC; padding: 0.42rem 0.55rem; vertical-align: top; text-align: left; }
+    th {
+      background: #F5F3EE;
+      border-bottom: 2px solid var(--accent);
+      font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
+      font-weight: 700;
+    }
+    tbody tr:nth-child(even) { background: #FDFCF9; }
+
+    ul { list-style-type: disc; }
+    ul ul { list-style-type: circle; }
+    ul ul ul { list-style-type: square; }
+    ol { list-style-type: decimal; }
+    ol ol { list-style-type: lower-alpha; }
+    ol ol ol { list-style-type: lower-roman; }
+    li { margin: 4px 0; }
+    ul, ol { padding-left: 24px; margin: 0.45rem 0 0.6rem; }
+
+    dl { margin: 0.6rem 0; }
+    dt { font-weight: 700; font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif; }
+    dd { margin: 0.2rem 0 0.45rem 1.2rem; }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--accent);
+      width: 60%;
+      margin: 1.2rem auto;
+      position: relative;
+    }
+
+    hr::after {
+      content: "✦";
+      position: absolute;
+      left: 50%;
+      top: -0.72rem;
+      transform: translateX(-50%);
+      background: var(--doc-bg);
+      color: #AA8A62;
+      padding: 0 0.4rem;
+      font-size: 0.86rem;
+    }
+
+    a { color: #C48D52; text-decoration: underline; }
+    a:hover { color: #9f6f3d; }
+
+    p.drop-cap::first-letter {
+      float: left;
+      font-size: 3.2em;
+      line-height: 0.8;
+      margin-right: 0.12em;
+      font-weight: 600;
+    }
+
+    p.first-para::first-line { font-variant: small-caps; }
+
+    mark { background: #F4E9B8; color: #2D2D2D; padding: 0 .15em; border-radius: 2px; }
+
+    .caps-word { letter-spacing: .03em; font-size: .92em; }
+
+    .copy-btn { min-height: 42px; font-size: 0.9rem; margin-bottom: 0.35rem; }
+    .copy-btn.copied::after { content: " Copied!"; color: #9BE0A6; }
+
+    .save-btn { width: 100%; margin-top: 0.75rem; }
+
+    .float-edit {
+      position: fixed;
+      right: 1.2rem;
+      bottom: 1.2rem;
+      z-index: 30;
+      display: none;
+      min-height: 48px;
+      border-radius: 999px;
+      padding-inline: 1.05rem;
+      box-shadow: 0 8px 20px rgba(0,0,0,.35);
+    }
+
+    .loading {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(0, 0, 0, 0.64);
+      z-index: 99;
+      backdrop-filter: blur(2px);
+    }
+
+    .loading-card {
+      background: #181818;
+      border: 1px solid #3A3A3A;
+      border-radius: 14px;
+      padding: 1.2rem 1.4rem;
+      text-align: center;
+      min-width: 220px;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #4D4D4D;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      margin: 0 auto 0.65rem;
+      will-change: transform;
+      animation: spin .85s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading p { margin: 0; color: #ddd; }
+
+    @media (max-width: 720px) {
+      .app { width: min(100% - 1rem, 800px); }
+      .card, .btn-row > * { flex: 1 1 100%; width: 100%; }
+      article.preview { max-width: 100%; padding-inline: 1rem; }
+      .page-a5 article.preview { max-width: 100%; }
+    }
+
+    @media print {
+      :root { color-scheme: light; }
+      body { background: #fff !important; margin: 0 !important; }
+      .app > :not(.output), .copy-btn, .save-btn, .float-edit, .info-bar { display: none !important; }
+      .output { display: block !important; margin: 0 !important; }
+      .doc-wrap, article.preview {
+        box-shadow: none !important;
+        border: none !important;
+        max-width: none !important;
+        width: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+      }
+      .doc-wrap::after, .running-header, hr::after, blockquote::before { display: none !important; content: none !important; }
+      article.preview {
+        font-size: 10pt !important;
+        line-height: 1.32 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      h1,h2,h3,h4,blockquote,table,pre { break-inside: avoid; }
+      pre.long-code { break-inside: auto; }
+      h1,h2,h3,h4 { break-after: avoid; }
+      p,li,blockquote,td,th,table,pre,code,mark,span,a,hr {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body class="size-medium page-a4">
+  <main class="app">
+    <header>
+      <h1>Text2PDF</h1>
+      <p>Paste markdown, format beautifully, and print to PDF instantly.</p>
+    </header>
+
+    <div class="row">
+      <section class="card">
+        <span class="label">Page size</span>
+        <div class="toggle-group" role="group" aria-label="Page size toggle">
+          <button class="toggle-btn page-size active" type="button" data-page="a4" aria-label="Set page size to A4">A4</button>
+          <button class="toggle-btn page-size" type="button" data-page="a5" aria-label="Set page size to A5">A5</button>
+        </div>
+      </section>
+      <section class="card">
+        <span class="label">Font size</span>
+        <div class="toggle-group" role="group" aria-label="Font size toggle">
+          <button class="toggle-btn font-size" type="button" data-size="small" aria-label="Set font size to small">Small</button>
+          <button class="toggle-btn font-size active" type="button" data-size="medium" aria-label="Set font size to medium">Medium</button>
+          <button class="toggle-btn font-size" type="button" data-size="large" aria-label="Set font size to large">Large</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="row"><section class="card" style="flex-basis:100%"><label class="label" for="titleInput">Title</label><input id="titleInput" type="text" placeholder="Document title (optional)"></section></div>
+    <div class="row"><section class="card" style="flex-basis:100%"><label class="label" for="subjectInput">Subject</label><input id="subjectInput" type="text" placeholder="Subject (optional)"></section></div>
+    <div class="row"><section class="card" style="flex-basis:100%"><label class="label" for="filenameInput">PDF filename</label><input id="filenameInput" type="text" placeholder="PDF filename (optional)"></section></div>
+
+    <section class="card" style="margin-bottom:0.75rem;">
+      <label class="label" for="markdownInput">Markdown content</label>
+      <div class="textarea-wrap">
+        <textarea id="markdownInput" placeholder="Paste or type markdown here..."></textarea>
+        <button id="pasteBtn" class="paste-btn" type="button">Paste</button>
+      </div>
+      <div id="count" class="count">0 characters · 0 words</div>
+      <div class="btn-row">
+        <button id="formatBtn" class="primary" type="button">Format &amp; Preview</button>
+        <button id="clearBtn" class="danger" type="button">Clear All</button>
+      </div>
+      <div id="error" class="error">Please paste some content before formatting.</div>
+    </section>
+
+    <section id="output" class="output">
+      <div id="infoBar" class="info-bar" role="status" aria-live="polite"></div>
+      <button id="copyBtn" class="copy-btn" type="button">Copy HTML</button>
+      <div id="docWrap" class="doc-wrap">
+        <div id="runningHeader" class="running-header"></div>
+        <article id="preview" class="preview"></article>
+      </div>
+      <button id="saveBtn" class="save-btn primary" type="button">Save as PDF</button>
+    </section>
+  </main>
+
+  <button id="floatEdit" class="float-edit primary" type="button">Back to Top/Edit</button>
+
+  <div id="loading" class="loading" aria-hidden="true">
+    <div class="loading-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <p>Formatting document...</p>
+    </div>
+  </div>
+
+  <style id="dynamicPageStyle"></style>
+
+  <script>
+    (() => {
+      const $ = (id) => document.getElementById(id);
+      const markdownInput = $('markdownInput');
+      const titleInput = $('titleInput');
+      const subjectInput = $('subjectInput');
+      const filenameInput = $('filenameInput');
+      const formatBtn = $('formatBtn');
+      const clearBtn = $('clearBtn');
+      const error = $('error');
+      const output = $('output');
+      const infoBar = $('infoBar');
+      const preview = $('preview');
+      const count = $('count');
+      const pasteBtn = $('pasteBtn');
+      const copyBtn = $('copyBtn');
+      const saveBtn = $('saveBtn');
+      const runningHeader = $('runningHeader');
+      const floatEdit = $('floatEdit');
+      const loading = $('loading');
+      const pageStyle = $('dynamicPageStyle');
+
+      const ESC_TOKEN = '\u0001';
+
+      const escapeHTML = (str) => str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+      const sanitizeFilename = (name) => name.replace(/[\\/:*?"<>|]/g, '').trim();
+
+      function setPageStyle(size) {
+        const css = size === 'a5'
+          ? '@page{size:A5;margin:14mm 14mm 14mm 14mm;}@page:first{margin-top:16mm;}'
+          : '@page{size:A4;margin:18mm 20mm 18mm 18mm;}@page:first{margin-top:21mm;}';
+        pageStyle.textContent = `@media print{${css}}`;
+      }
+
+      function setPageSize(size) {
+        document.body.classList.toggle('page-a4', size === 'a4');
+        document.body.classList.toggle('page-a5', size === 'a5');
+        document.querySelectorAll('.page-size').forEach((b) => b.classList.toggle('active', b.dataset.page === size));
+        localStorage.setItem('text2pdf.pageSize', size);
+        setPageStyle(size);
+      }
+
+      function setFontSize(size) {
+        document.body.classList.remove('size-small', 'size-medium', 'size-large');
+        document.body.classList.add(`size-${size}`);
+        document.querySelectorAll('.font-size').forEach((b) => b.classList.toggle('active', b.dataset.size === size));
+        localStorage.setItem('text2pdf.fontSize', size);
+      }
+
+      function updateCount() {
+        const text = markdownInput.value;
+        const chars = text.length;
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        count.textContent = `${chars.toLocaleString()} characters · ${words.toLocaleString()} words`;
+      }
+
+      function autoGrow() {
+        markdownInput.style.height = 'auto';
+        const target = Math.min(markdownInput.scrollHeight, Math.round(window.innerHeight * 0.6));
+        markdownInput.style.height = `${Math.max(250, target)}px`;
+      }
+
+      function preprocess(md) {
+        const escapes = [];
+        const clean = md
+          .replace(/^\uFEFF/, '')
+          .replace(/\r\n/g, '\n')
+          .replace(/\r/g, '\n')
+          .replace(/\\([\\`*_{}\[\]()#+\-.!~^|>])/g, (_, ch) => {
+            const idx = escapes.push(ch) - 1;
+            return `${ESC_TOKEN}${idx}${ESC_TOKEN}`;
+          });
+        return { clean, escapes };
+      }
+
+      function restoreEscapes(text, escapes) {
+        return text.replace(new RegExp(`${ESC_TOKEN}(\\d+)${ESC_TOKEN}`, 'g'), (_, i) => escapes[Number(i)] ?? '');
+      }
+
+      function extractCode(text) {
+        const blocks = [];
+        const inlines = [];
+        let out = text.replace(/```([^\n]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+          const id = blocks.push({ lang: (lang || '').trim(), code }) - 1;
+          return `\u0000BLOCK${id}\u0000`;
+        });
+        out = out.replace(/`([^`\n]*)`/g, (_, code) => {
+          const id = inlines.push(code) - 1;
+          return `\u0000INLINE${id}\u0000`;
+        });
+        return { text: out, blocks, inlines };
+      }
+
+      function parseInlines(text) {
+        let t = escapeHTML(text);
+        t = t.replace(/\*\*\*([^*]+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+             .replace(/___([^_]+?)___/g, '<strong><em>$1</em></strong>')
+             .replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>')
+             .replace(/__([^_]+?)__/g, '<strong>$1</strong>')
+             .replace(/\*(?!\s)([^*]+?)(?!\s)\*/g, '<em>$1</em>')
+             .replace(/\b_([^_\s][^_]*?)_\b/g, '<em>$1</em>')
+             .replace(/~~([^~]+?)~~/g, '<del>$1</del>')
+             .replace(/==([^=]+?)==/g, '<mark>$1</mark>')
+             .replace(/\^([^\^\s][^\^]*?)\^/g, '<sup>$1</sup>')
+             .replace(/~(?!~)([^~\s][^~]*?)~/g, '<sub>$1</sub>')
+             .replace(/\[([^\]]+?)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        return smartTypography(t);
+      }
+
+      function smartTypography(html) {
+        const segs = html.split(/(<[^>]+>)/g);
+        for (let i = 0; i < segs.length; i++) {
+          if (segs[i].startsWith('<')) continue;
+          let s = segs[i];
+          s = s.replace(/---/g, '—').replace(/--/g, '–').replace(/\.\.\./g, '…');
+          s = s.replace(/\b1\/4\b/g, '¼').replace(/\b1\/2\b/g, '½').replace(/\b3\/4\b/g, '¾');
+          s = s.replace(/\(c\)/gi, '©').replace(/\(r\)/gi, '®').replace(/\(tm\)/gi, '™');
+          s = s.replace(/(\d)\-(\d)/g, '$1–$2');
+          s = s.replace(/(\d)\s*x\s*(\d)/gi, '$1×$2');
+          s = s.replace(/\b(\d+)(st|nd|rd|th)\b/gi, '$1<sup>$2</sup>');
+          s = s.replace(/\b(Dr\.|Mr\.|Mrs\.|vs\.|e\.g\.|i\.e\.|etc\.|Vol\.|No\.|Fig\.)\s+/g, '$1&nbsp;');
+          s = s.replace(/(^|[\s\(\["'])"?([A-Z]{4,})(?=$|[\s\)\]"'.,;:!?])/g, '$1<span class="caps-word">$2</span>');
+
+          let out = '';
+          let openD = true;
+          let openS = true;
+          for (let c = 0; c < s.length; c++) {
+            const ch = s[c];
+            if (ch === '"') { out += openD ? '“' : '”'; openD = !openD; continue; }
+            if (ch === "'") {
+              const prev = s[c - 1] || '';
+              const next = s[c + 1] || '';
+              if (/\w/.test(prev) && /\w/.test(next)) { out += '’'; }
+              else { out += openS ? '‘' : '’'; openS = !openS; }
+              continue;
+            }
+            out += ch;
+          }
+          segs[i] = out;
+        }
+        return segs.join('');
+      }
+
+      function parseTable(rows) {
+        const parsed = rows.map((r) => r.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim()));
+        const sepIdx = parsed.findIndex((cells) => cells.every((c) => /^:?-{3,}:?$/.test(c.replace(/\s+/g, ''))));
+        const header = sepIdx === 1 ? parsed[0] : parsed[0];
+        const body = sepIdx === 1 ? parsed.slice(2) : parsed.slice(1);
+        const maxCols = Math.max(header.length, ...body.map((r) => r.length), 1);
+        const fill = (r) => Array.from({ length: maxCols }, (_, i) => parseInlines(r[i] || ''));
+        const h = fill(header).map((cell) => `<th>${cell}</th>`).join('');
+        const b = body.map((r) => `<tr>${fill(r).map((cell) => `<td>${cell}</td>`).join('')}</tr>`).join('');
+        return `<table><thead><tr>${h}</tr></thead><tbody>${b}</tbody></table>`;
+      }
+
+      function parseBlocks(text) {
+        const lines = text.split('\n');
+        const out = [];
+        let paragraph = [];
+        const listStack = [];
+        let blockquoteDepth = 0;
+        let pendingSetext = null;
+
+        function closeParagraph() {
+          if (!paragraph.length) return;
+          const normalized = paragraph.map((line) => line.endsWith('  ') ? `${line.slice(0, -2)}<br>` : line).join('<br>');
+          out.push(`<p>${parseInlines(normalized)}</p>`);
+          paragraph = [];
+        }
+
+        function closeLists(to = 0) {
+          while (listStack.length > to) out.push(`</${listStack.pop()}>`);
+        }
+
+        function setBlockquoteDepth(target) {
+          while (blockquoteDepth < target) { closeParagraph(); out.push('<blockquote>'); blockquoteDepth++; }
+          while (blockquoteDepth > target) { closeParagraph(); closeLists(0); out.push('</blockquote>'); blockquoteDepth--; }
+        }
+
+        for (let i = 0; i < lines.length; i++) {
+          let line = lines[i];
+          if (!line.trim()) {
+            closeParagraph();
+            closeLists(0);
+            pendingSetext = null;
+            continue;
+          }
+
+          const bqMatch = line.match(/^(\s*)(>+)(?:\s?)(.*)$/);
+          if (bqMatch) {
+            setBlockquoteDepth(bqMatch[2].length);
+            line = bqMatch[3];
+          } else {
+            setBlockquoteDepth(0);
+          }
+
+          if (pendingSetext && /^\s*(=+|-+)\s*$/.test(line)) {
+            closeParagraph();
+            closeLists(0);
+            const level = line.includes('=') ? 1 : 2;
+            out.push(`<h${level}>${parseInlines(pendingSetext)}</h${level}>`);
+            pendingSetext = null;
+            continue;
+          }
+
+          const atx = line.match(/^\s*(#{1,4})\s+(.+)$/);
+          if (atx) {
+            closeParagraph();
+            closeLists(0);
+            out.push(`<h${atx[1].length}>${parseInlines(atx[2].trim())}</h${atx[1].length}>`);
+            pendingSetext = null;
+            continue;
+          }
+
+          if (/^\s*(?:\*\s*){3,}$|^\s*(?:-\s*){3,}$|^\s*(?:_\s*){3,}$/.test(line)) {
+            closeParagraph();
+            closeLists(0);
+            out.push('<hr>');
+            pendingSetext = null;
+            continue;
+          }
+
+          if (/^\|/.test(line.trim())) {
+            closeParagraph();
+            closeLists(0);
+            const rows = [line];
+            while (i + 1 < lines.length && /^\|/.test(lines[i + 1].trim())) rows.push(lines[++i]);
+            out.push(parseTable(rows));
+            pendingSetext = null;
+            continue;
+          }
+
+          if (i + 1 < lines.length && /^\s*:\s+/.test(lines[i + 1])) {
+            closeParagraph();
+            closeLists(0);
+            const term = parseInlines(line.trim());
+            const def = parseInlines(lines[++i].replace(/^\s*:\s+/, ''));
+            out.push(`<dl><dt>${term}</dt><dd>${def}</dd></dl>`);
+            pendingSetext = null;
+            continue;
+          }
+
+          const listM = line.match(/^(\s*)([-*+]\s+|\d+\.\s+)(.*)$/);
+          if (listM) {
+            closeParagraph();
+            const indent = Math.min(2, Math.floor((listM[1] || '').length / 2));
+            const type = /\d+\./.test(listM[2]) ? 'ol' : 'ul';
+            while (listStack.length > indent) out.push(`</${listStack.pop()}>`);
+            if (listStack[indent] !== type) {
+              while (listStack.length > indent) out.push(`</${listStack.pop()}>`);
+              while (listStack.length < indent) { out.push('<ul>'); listStack.push('ul'); }
+              out.push(`<${type}>`);
+              listStack.push(type);
+            }
+            let textPart = listM[3] || '';
+            textPart = textPart.replace(/^\[( |x|X)\]\s+/, (_, checked) => checked.trim().toLowerCase() === 'x' ? '☑ ' : '☐ ');
+            out.push(`<li>${parseInlines(textPart)}</li>`);
+            pendingSetext = null;
+            continue;
+          }
+
+          closeLists(0);
+          paragraph.push(line);
+          pendingSetext = line.trim();
+        }
+
+        closeParagraph();
+        closeLists(0);
+        setBlockquoteDepth(0);
+        return out.join('');
+      }
+
+      function restoreCode(html, blocks, inlines) {
+        let out = html;
+        let blockCount = 0;
+        let inlineCount = 0;
+        out = out.replace(/\u0000BLOCK(\d+)\u0000/g, (_, i) => {
+          blockCount++;
+          const raw = blocks[Number(i)]?.code ?? '';
+          const lines = raw.split('\n').length;
+          return `<pre${lines > 40 ? ' class="long-code"' : ''}><code>${escapeHTML(raw)}</code></pre>`;
+        });
+        out = out.replace(/\u0000INLINE(\d+)\u0000/g, (_, i) => {
+          inlineCount++;
+          return `<code>${escapeHTML(inlines[Number(i)] ?? '')}</code>`;
+        });
+        if (blockCount !== blocks.length || inlineCount !== inlines.length) {
+          return out;
+        }
+        return out;
+      }
+
+      function applyDropCaps(article) {
+        article.querySelectorAll('p.drop-cap, p.first-para').forEach((p) => p.classList.remove('drop-cap', 'first-para'));
+        const paras = Array.from(article.querySelectorAll('p'));
+        let target = null;
+
+        for (const p of paras) {
+          if (p.closest('blockquote, li')) continue;
+          const txt = p.textContent.trim();
+          if (txt.length < 20) continue;
+          const prev = p.previousElementSibling;
+          if (!target) {
+            target = p;
+            break;
+          }
+          if (prev && /H[12]/.test(prev.tagName)) {
+            target = p;
+            break;
+          }
+        }
+
+        if (target) {
+          target.classList.add('drop-cap', 'first-para');
+        }
+      }
+
+      function assembleDocument(contentHTML) {
+        const title = escapeHTML(titleInput.value.trim());
+        const subject = escapeHTML(subjectInput.value.trim().toUpperCase());
+        const pieces = [];
+        if (title) pieces.push(`<h1 class="doc-title">${title}</h1>`);
+        if (subject) pieces.push(`<div class="doc-subject">${subject}</div>`);
+        pieces.push(contentHTML);
+        return pieces.join('');
+      }
+
+      function estimatePages(chars, page) {
+        const perPage = page === 'a5' ? 1400 : 2200;
+        return Math.max(1, Math.ceil(chars / perPage));
+      }
+
+      async function formatDocument() {
+        const raw = markdownInput.value;
+        if (!raw.trim()) {
+          error.style.display = 'block';
+          output.style.display = 'none';
+          return;
+        }
+
+        error.style.display = 'none';
+        loading.style.display = 'grid';
+
+        await new Promise((r) => setTimeout(r, 50));
+
+        const { clean, escapes } = preprocess(raw);
+        const { text, blocks, inlines } = extractCode(clean);
+        const parsed = parseBlocks(text);
+        const restoredEscapes = restoreEscapes(parsed, escapes);
+        const restoredCode = restoreCode(restoredEscapes, blocks, inlines);
+        const finalHTML = assembleDocument(restoredCode);
+
+        preview.innerHTML = finalHTML;
+        applyDropCaps(preview);
+
+        const chars = raw.length;
+        const page = document.body.classList.contains('page-a5') ? 'a5' : 'a4';
+        infoBar.classList.remove('flash');
+        void infoBar.offsetWidth;
+        infoBar.classList.add('flash');
+        infoBar.textContent = `✓ ${chars.toLocaleString()} characters · ~${estimatePages(chars, page)} pages · Content preserved. Tip: Use Save as PDF and enable background graphics for best fidelity.`;
+        runningHeader.textContent = titleInput.value.trim() || 'Text2PDF Preview';
+        output.style.display = 'block';
+        loading.style.display = 'none';
+      }
+
+      async function copyHTML() {
+        try {
+          await navigator.clipboard.writeText(preview.innerHTML);
+          copyBtn.classList.add('copied');
+          setTimeout(() => copyBtn.classList.remove('copied'), 1200);
+        } catch {
+          copyBtn.classList.remove('copied');
+        }
+      }
+
+      function handlePrint() {
+        const originalTitle = document.title;
+        const file = sanitizeFilename(filenameInput.value.trim()) || sanitizeFilename(titleInput.value.trim()) || 'Text2PDF';
+        document.title = file;
+        const restore = () => { document.title = originalTitle; window.removeEventListener('afterprint', restore); };
+        window.addEventListener('afterprint', restore);
+        setTimeout(() => { document.title = originalTitle; }, 1200);
+        window.print();
+      }
+
+      async function pasteText() {
+        try {
+          const txt = await navigator.clipboard.readText();
+          markdownInput.value = txt;
+          updateCount();
+          autoGrow();
+        } catch {
+          count.textContent = 'Clipboard access unavailable. Use Ctrl/Cmd+V in the editor.';
+        }
+      }
+
+      function clearAll() {
+        if (!confirm('Clear all fields and preview?')) return;
+        markdownInput.value = '';
+        titleInput.value = '';
+        subjectInput.value = '';
+        filenameInput.value = '';
+        preview.innerHTML = '';
+        output.style.display = 'none';
+        error.style.display = 'none';
+        updateCount();
+        autoGrow();
+      }
+
+      document.querySelectorAll('.page-size').forEach((btn) => btn.addEventListener('click', () => setPageSize(btn.dataset.page)));
+      document.querySelectorAll('.font-size').forEach((btn) => btn.addEventListener('click', () => setFontSize(btn.dataset.size)));
+
+      markdownInput.addEventListener('input', () => { updateCount(); autoGrow(); });
+      pasteBtn.addEventListener('click', pasteText);
+      formatBtn.addEventListener('click', formatDocument);
+      clearBtn.addEventListener('click', clearAll);
+      copyBtn.addEventListener('click', copyHTML);
+      saveBtn.addEventListener('click', handlePrint);
+
+      document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          formatDocument();
+        }
+      });
+
+      window.addEventListener('scroll', () => {
+        floatEdit.style.display = window.scrollY > 260 ? 'inline-flex' : 'none';
+      }, { passive: true });
+
+      floatEdit.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        markdownInput.focus();
+      });
+
+      setPageSize(localStorage.getItem('text2pdf.pageSize') || 'a4');
+      setFontSize(localStorage.getItem('text2pdf.fontSize') || 'medium');
+      updateCount();
+      autoGrow();
+    })();
+  </script>
+</body>
+</html>
